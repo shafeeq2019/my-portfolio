@@ -221,3 +221,4 @@ Everything is editable from the admin dashboard — no code changes needed:
 
 Start by signing in at `/admin`, updating your **Profile**, then replacing the seeded
 sample projects and experience with your own.
+"# my-portfolio" 
