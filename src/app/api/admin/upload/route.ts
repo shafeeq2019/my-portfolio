@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { saveUpload } from "@/lib/upload";
+import { saveUpload, UploadError } from "@/lib/upload";
 
 export const runtime = "nodejs";
 
@@ -21,6 +21,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ url });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Upload failed.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    const status = e instanceof UploadError ? e.statusCode : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

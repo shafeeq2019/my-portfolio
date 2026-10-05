@@ -115,9 +115,10 @@ Visit http://localhost:3000. Admin dashboard at http://localhost:3000/admin.
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | optional | Cloudflare Turnstile site key (enables CAPTCHA). |
 | `TURNSTILE_SECRET_KEY` | optional | Cloudflare Turnstile secret key. |
 | `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` | optional | Plausible domain to enable analytics. |
+| `BLOB_READ_WRITE_TOKEN` | optional | Vercel Blob token for local uploads to Blob. On Vercel, connect a Blob store to use automatic OIDC auth. |
 
 All optional integrations degrade gracefully — the app runs fully without Resend,
-Turnstile or Plausible configured.
+Turnstile, Plausible or Vercel Blob configured locally.
 
 ---
 
@@ -194,10 +195,10 @@ truncated user-agent for abuse mitigation. No third-party trackers touch message
 6. Seed once: `npm run db:seed` (or create your admin user manually).
 7. Deploy. `npm run build` runs `prisma generate` automatically.
 
-> **File uploads:** local disk (`/public/uploads`) works on a VPS/long-running
-> server but **not** on serverless (Vercel) where the filesystem is ephemeral.
-> For serverless, swap `src/lib/upload.ts` for Vercel Blob, S3, or UploadThing —
-> the `saveUpload()` signature can stay the same.
+> **File uploads:** create a Vercel Blob store and connect it to your Vercel project.
+> The Blob SDK uses Vercel's automatically managed OIDC credentials in deployments.
+> For local development, uploads use `public/uploads` unless you set
+> `BLOB_READ_WRITE_TOKEN` (for example, via `vercel env pull`).
 
 ### Alternative: any Node host (Railway, Render, Fly, a VPS)
 Local disk uploads work out of the box. Set env vars, run `db:push`/`db:seed`,
