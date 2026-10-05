@@ -61,10 +61,8 @@ export async function saveUpload(
 }
 
 function hasBlobConfiguration(): boolean {
-  return Boolean(
-    process.env.BLOB_READ_WRITE_TOKEN ||
-      (process.env.VERCEL_OIDC_TOKEN && process.env.BLOB_STORE_ID),
-  );
+  // Vercel can provide the OIDC token through request context instead of env.
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
 function extForType(type: string): string {
