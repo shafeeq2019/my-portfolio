@@ -30,7 +30,14 @@ export function toInput(record: object): Record<string, unknown> {
 }
 
 export const id = z.string().describe("Record id");
-export const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD.").describe("Date as YYYY-MM-DD");
+export const date = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD.")
+  .refine((value) => {
+    const parsed = new Date(value);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  }, "Not a valid calendar date.")
+  .describe("Date as YYYY-MM-DD");
 export const order = z.number().int().describe("Sort position (ascending)");
 export const published = z.boolean().describe("Visible on the public site");
 

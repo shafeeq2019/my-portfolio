@@ -1,14 +1,8 @@
-import { revalidatePath } from "next/cache";
 import type { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { certificationSchema, educationSchema } from "@/lib/validations";
 import { invalid, orNull, type ServiceResult } from "./result";
-
-/** Education and certifications share the admin page and the public /about page. */
-function revalidateEducation() {
-  revalidatePath("/admin/education");
-  revalidatePath("/about");
-}
+import { revalidateSite } from "./revalidate";
 
 // --- Education ---
 
@@ -49,7 +43,7 @@ export async function createEducation(input: EducationInput): Promise<ServiceRes
   const parsed = validateEducation(input);
   if (!parsed.success) return invalid(parsed.error);
   const education = await prisma.education.create({ data: educationData(parsed.data) });
-  revalidateEducation();
+  revalidateSite();
   return { ok: true, data: { id: education.id } };
 }
 
@@ -57,13 +51,13 @@ export async function updateEducation(id: string, input: EducationInput): Promis
   const parsed = validateEducation(input);
   if (!parsed.success) return invalid(parsed.error);
   await prisma.education.update({ where: { id }, data: educationData(parsed.data) });
-  revalidateEducation();
+  revalidateSite();
   return { ok: true, data: { id } };
 }
 
 export async function deleteEducation(id: string) {
   await prisma.education.delete({ where: { id } });
-  revalidateEducation();
+  revalidateSite();
 }
 
 // --- Certifications ---
@@ -105,7 +99,7 @@ export async function createCertification(input: CertificationInput): Promise<Se
   const parsed = validateCertification(input);
   if (!parsed.success) return invalid(parsed.error);
   const certification = await prisma.certification.create({ data: certificationData(parsed.data) });
-  revalidateEducation();
+  revalidateSite();
   return { ok: true, data: { id: certification.id } };
 }
 
@@ -113,11 +107,11 @@ export async function updateCertification(id: string, input: CertificationInput)
   const parsed = validateCertification(input);
   if (!parsed.success) return invalid(parsed.error);
   await prisma.certification.update({ where: { id }, data: certificationData(parsed.data) });
-  revalidateEducation();
+  revalidateSite();
   return { ok: true, data: { id } };
 }
 
 export async function deleteCertification(id: string) {
   await prisma.certification.delete({ where: { id } });
-  revalidateEducation();
+  revalidateSite();
 }

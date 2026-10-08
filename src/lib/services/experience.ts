@@ -1,8 +1,8 @@
-import { revalidatePath } from "next/cache";
 import type { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { experienceSchema } from "@/lib/validations";
 import { invalid, orNull, type ServiceResult } from "./result";
+import { revalidateSite } from "./revalidate";
 
 export type ExperienceInput = Partial<Record<keyof z.input<typeof experienceSchema>, unknown>>;
 
@@ -36,11 +36,6 @@ function toData(d: z.output<typeof experienceSchema>) {
   };
 }
 
-function revalidateExperience() {
-  revalidatePath("/admin/experience");
-  revalidatePath("/experience");
-}
-
 export function listExperience() {
   return prisma.experience.findMany({ orderBy: [{ order: "asc" }, { startDate: "desc" }] });
 }
@@ -53,7 +48,7 @@ export async function createExperience(input: ExperienceInput): Promise<ServiceR
   const parsed = validate(input);
   if (!parsed.success) return invalid(parsed.error);
   const experience = await prisma.experience.create({ data: toData(parsed.data) });
-  revalidateExperience();
+  revalidateSite();
   return { ok: true, data: { id: experience.id } };
 }
 
@@ -61,11 +56,11 @@ export async function updateExperience(id: string, input: ExperienceInput): Prom
   const parsed = validate(input);
   if (!parsed.success) return invalid(parsed.error);
   await prisma.experience.update({ where: { id }, data: toData(parsed.data) });
-  revalidateExperience();
+  revalidateSite();
   return { ok: true, data: { id } };
 }
 
 export async function deleteExperience(id: string) {
   await prisma.experience.delete({ where: { id } });
-  revalidateExperience();
+  revalidateSite();
 }

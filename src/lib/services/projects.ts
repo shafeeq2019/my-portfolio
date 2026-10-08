@@ -1,8 +1,8 @@
-import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { projectSchema } from "@/lib/validations";
 import { toSlug } from "@/lib/utils";
 import { invalid, type ServiceResult } from "./result";
+import { revalidateSite } from "./revalidate";
 
 /**
  * Project business logic, shared by the admin server actions and the MCP route.
@@ -38,14 +38,8 @@ function validate(input: ProjectInput) {
   });
 }
 
-function revalidateProjects(slug?: string) {
-  revalidatePath("/admin/projects");
-  revalidatePath("/projects");
-  if (slug) revalidatePath(`/projects/${slug}`);
-}
-
 export function listProjects() {
-  return prisma.project.findMany({ orderBy: { order: "asc" } });
+  return prisma.project.findMany({ orderBy: [{ order: "asc" }, { createdAt: "desc" }] });
 }
 
 export function getProject(idOrSlug: string) {
@@ -62,7 +56,7 @@ export async function createProject(input: ProjectInput): Promise<ServiceResult<
   }
 
   const project = await prisma.project.create({ data: parsed.data });
-  revalidateProjects();
+  revalidateSite();
   return { ok: true, data: { id: project.id, slug: project.slug } };
 }
 
@@ -76,30 +70,41 @@ export async function updateProject(id: string, input: ProjectInput): Promise<Se
   }
 
   const project = await prisma.project.update({ where: { id }, data: parsed.data });
-  revalidateProjects(project.slug);
+  revalidateSite();
   return { ok: true, data: { id: project.id, slug: project.slug } };
 }
 
 export async function deleteProject(id: string) {
   await prisma.project.delete({ where: { id } });
-  revalidateProjects();
+  revalidateSite();
 }
 
 export async function setProjectPublished(id: string, published: boolean) {
   await prisma.project.update({ where: { id }, data: { published } });
-  revalidateProjects();
+  revalidateSite();
 }
 
-export async function moveProject(id: string, direction: "up" | "down") {
-  const all = await prisma.project.findMany({ orderBy: { order: "asc" } });
+/**
+ * Moves a project one position up or down. Projects often share an order value
+ * (the default is 0), so swapping two values would be a no-op; instead the list
+ * is renumbered 0..n-1 in its new order. Returns false if nothing moved.
+ */
+export async function moveProject(id: string, direction: "up" | "down"): Promise<boolean> {
+  const all = await prisma.project.findMany({
+    orderBy: [{ order: "asc" }, { createdAt: "desc" }],
+    select: { id: true, order: true },
+  });
   const idx = all.findIndex((p) => p.id === id);
-  if (idx === -1) return;
   const swapWith = direction === "up" ? idx - 1 : idx + 1;
-  if (swapWith < 0 || swapWith >= all.length) return;
+  if (idx === -1 || swapWith < 0 || swapWith >= all.length) return false;
 
-  await prisma.$transaction([
-    prisma.project.update({ where: { id: all[idx].id }, data: { order: all[swapWith].order } }),
-    prisma.project.update({ where: { id: all[swapWith].id }, data: { order: all[idx].order } }),
-  ]);
-  revalidatePath("/admin/projects");
+  [all[idx], all[swapWith]] = [all[swapWith], all[idx]];
+  await prisma.$transaction(
+    all
+      .map((p, order) => ({ ...p, newOrder: order }))
+      .filter((p) => p.order !== p.newOrder)
+      .map((p) => prisma.project.update({ where: { id: p.id }, data: { order: p.newOrder } })),
+  );
+  revalidateSite();
+  return true;
 }

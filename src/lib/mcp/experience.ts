@@ -1,11 +1,12 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import * as experience from "@/lib/services/experience";
+import { parseList } from "@/lib/utils";
 import { UPDATE_HINT, date, fromResult, id, json, notFound, order, published, toInput } from "./helpers";
 
 /** Prisma stores highlights as a JSON string; expose it as an array. */
 function serialize(entry: NonNullable<Awaited<ReturnType<typeof experience.getExperience>>>) {
-  return { ...entry, highlights: JSON.parse(entry.highlights ?? "[]") as string[] };
+  return { ...entry, highlights: parseList(entry.highlights) };
 }
 
 const fields = z.object({

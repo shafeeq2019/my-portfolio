@@ -1,12 +1,15 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import * as projects from "@/lib/services/projects";
-import { UPDATE_HINT, fromResult, id, json, notFound, order, published, toInput } from "./helpers";
+import { parseList } from "@/lib/utils";
+import { UPDATE_HINT, fail, fromResult, json, notFound, order, published, toInput } from "./helpers";
 
 /** Prisma stores technologies as a JSON string; expose it as an array. */
 function serialize(project: NonNullable<Awaited<ReturnType<typeof projects.getProject>>>) {
-  return { ...project, technologies: JSON.parse(project.technologies) as string[] };
+  return { ...project, technologies: parseList(project.technologies) };
 }
+
+const projectId = z.string().describe("Project id or slug");
 
 const fields = z.object({
   title: z.string().describe("Project title"),
@@ -69,7 +72,7 @@ export function registerProjectTools(server: McpServer) {
     {
       title: "Update project",
       description: `Update an existing project. ${UPDATE_HINT}`,
-      inputSchema: fields.partial().extend({ id }),
+      inputSchema: fields.partial().extend({ id: projectId }),
     },
     async ({ id, ...changes }) => {
       const existing = await projects.getProject(id);
@@ -83,13 +86,14 @@ export function registerProjectTools(server: McpServer) {
     {
       title: "Delete project",
       description: "Permanently delete a project.",
-      inputSchema: z.object({ id }),
+      inputSchema: z.object({ id: projectId }),
       annotations: { destructiveHint: true },
     },
     async ({ id }) => {
-      if (!(await projects.getProject(id))) return notFound("Project", id);
-      await projects.deleteProject(id);
-      return json({ deleted: id });
+      const existing = await projects.getProject(id);
+      if (!existing) return notFound("Project", id);
+      await projects.deleteProject(existing.id);
+      return json({ deleted: existing.id });
     },
   );
 
@@ -98,12 +102,13 @@ export function registerProjectTools(server: McpServer) {
     {
       title: "Publish / unpublish project",
       description: "Show or hide a project on the public site.",
-      inputSchema: z.object({ id, published: z.boolean() }),
+      inputSchema: z.object({ id: projectId, published: z.boolean() }),
     },
     async ({ id, published }) => {
-      if (!(await projects.getProject(id))) return notFound("Project", id);
-      await projects.setProjectPublished(id, published);
-      return json({ id, published });
+      const existing = await projects.getProject(id);
+      if (!existing) return notFound("Project", id);
+      await projects.setProjectPublished(existing.id, published);
+      return json({ id: existing.id, published });
     },
   );
 
@@ -112,12 +117,15 @@ export function registerProjectTools(server: McpServer) {
     {
       title: "Move project",
       description: "Move a project one position up or down in the sort order.",
-      inputSchema: z.object({ id, direction: z.enum(["up", "down"]) }),
+      inputSchema: z.object({ id: projectId, direction: z.enum(["up", "down"]) }),
     },
     async ({ id, direction }) => {
-      if (!(await projects.getProject(id))) return notFound("Project", id);
-      await projects.moveProject(id, direction);
-      return json({ id, moved: direction });
+      const existing = await projects.getProject(id);
+      if (!existing) return notFound("Project", id);
+      const moved = await projects.moveProject(existing.id, direction);
+      return moved
+        ? json({ id: existing.id, moved: direction })
+        : fail(`Project is already at the ${direction === "up" ? "top" : "bottom"}.`);
     },
   );
 }
