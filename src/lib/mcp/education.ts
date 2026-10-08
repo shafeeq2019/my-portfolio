@@ -1,8 +1,9 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import * as education from "@/lib/services/education";
-import { UPDATE_HINT, date, fromResult, id, json, notFound, order, published, toInput } from "./helpers";
+import { UPDATE_HINT, date, fromResult, id, json, notFound, published, toInput } from "./helpers";
 
+/** No `order` field: the site sorts education and certifications by date. */
 const educationFields = z.object({
   institution: z.string().describe("School or university"),
   degree: z.string().describe('e.g. "B.Sc."'),
@@ -10,7 +11,6 @@ const educationFields = z.object({
   startDate: date,
   endDate: date.or(z.literal("")).describe("End date as YYYY-MM-DD; omit or empty if ongoing"),
   description: z.string().describe("Optional details"),
-  order,
   published,
 });
 
@@ -21,7 +21,6 @@ const certificationFields = z.object({
   expiryDate: date.or(z.literal("")).describe("Expiry date as YYYY-MM-DD; omit or empty if it does not expire"),
   credentialId: z.string().describe("Credential id"),
   credentialUrl: z.string().describe("Verification URL"),
-  order,
   published,
 });
 
