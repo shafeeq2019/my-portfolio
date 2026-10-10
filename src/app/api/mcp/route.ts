@@ -36,4 +36,17 @@ function verifyToken(_req: Request, token?: string) {
 
 const authorizedHandler = withMcpAuth(handler, verifyToken, { required: true });
 
-export { authorizedHandler as GET, authorizedHandler as POST, authorizedHandler as DELETE };
+/**
+ * The MCP SDK answers POSTs with an SSE stream and runs the tool while that
+ * stream is open, i.e. after this route has returned. Next.js flushes
+ * revalidatePath() calls as soon as the route returns, so revalidations made
+ * by tools would be dropped and the public site would stay stale until the
+ * next deploy. Buffering the body keeps the tool call inside the route.
+ */
+async function bufferedHandler(req: Request) {
+  const res = await authorizedHandler(req);
+  const body = await res.arrayBuffer();
+  return new Response(body, { status: res.status, statusText: res.statusText, headers: res.headers });
+}
+
+export { authorizedHandler as GET, bufferedHandler as POST, authorizedHandler as DELETE };
